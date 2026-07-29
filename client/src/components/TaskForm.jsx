@@ -32,8 +32,10 @@ export default function TaskForm({ initialTask, onSubmit, onClose }) {
   }, [initialTask, reset]);
 
   const submitHandler = async (values) => {
-    await onSubmit(values);
-    onClose();
+    const result = await onSubmit(values);
+    // onSubmit resolves to null if the user cancelled the confirmation
+    // toast — in that case keep the form open so they can retry or edit.
+    if (result) onClose();
   };
 
   return (
