@@ -19,14 +19,7 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN || '')
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow non-browser requests (no origin, e.g. curl/Postman) and
-      // any origin in the whitelist.
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error('Not allowed by CORS'));
-    },
+    origin: true,
     credentials: true,
   })
 );
