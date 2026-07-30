@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import * as taskService from '../services/taskService';
-import { confirmToast } from '../utils/confirmToast';
+import { confirmDelete } from '../utils/confirmDelete';
 
 /**
  * Encapsulates all task data-fetching and mutation logic so pages/components
  * stay declarative. Handles loading/error state and keeps local state in
  * sync after create/update/delete without needing a full refetch.
  *
- * addTask, editTask, and removeTask each show a confirmation toast before
- * performing the mutation. If the user cancels, the function resolves to
- * null/undefined and no request is made.
+ * Only removeTask (delete) asks for confirmation — it's the one
+ * irreversible action. Create/update run immediately.
  */
 export function useTasks({ search, priority, status } = {}) {
   const [tasks, setTasks] = useState([]);
@@ -36,9 +35,6 @@ export function useTasks({ search, priority, status } = {}) {
   }, [fetchTasks]);
 
   const addTask = async (payload) => {
-    const confirmed = await confirmToast(`Create task "${payload.title}"?`);
-    if (!confirmed) return null;
-
     const newTask = await taskService.createTask(payload);
     setTasks((prev) => [newTask, ...prev]);
     toast.success(`"${newTask.title}" added successfully`);
@@ -46,11 +42,6 @@ export function useTasks({ search, priority, status } = {}) {
   };
 
   const editTask = async (id, payload) => {
-    const confirmed = await confirmToast(
-      `Save changes to "${payload.title || 'this task'}"?`
-    );
-    if (!confirmed) return null;
-
     const updated = await taskService.updateTask(id, payload);
     setTasks((prev) => prev.map((t) => (t._id === id ? updated : t)));
     toast.success(`"${updated.title}" updated successfully`);
@@ -58,9 +49,8 @@ export function useTasks({ search, priority, status } = {}) {
   };
 
   const moveTask = async (id, newStatus) => {
-    // Optimistic update for a snappy drag-and-drop feel.
-    // (No confirmation here on purpose — a board-column drag is a fast,
-    // easily reversible action; confirming would defeat the point of drag-and-drop.)
+    // Optimistic update for a snappy drag-and-drop feel. No confirmation
+    // here either — a board-column drag is fast and easily reversible.
     const previous = tasks;
     setTasks((prev) =>
       prev.map((t) => (t._id === id ? { ...t, status: newStatus } : t))
@@ -75,9 +65,7 @@ export function useTasks({ search, priority, status } = {}) {
 
   const removeTask = async (id) => {
     const task = tasks.find((t) => t._id === id);
-    const confirmed = await confirmToast(
-      `Delete "${task?.title || 'this task'}"? This cannot be undone.`
-    );
+    const confirmed = await confirmDelete(task?.title || 'this task');
     if (!confirmed) return;
 
     const previous = tasks;

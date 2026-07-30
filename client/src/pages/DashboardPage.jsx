@@ -40,10 +40,9 @@ export default function DashboardPage() {
 
   const handleFormSubmit = async (values) => {
     if (taskBeingEdited) {
-      await editTask(taskBeingEdited._id, values);
-    } else {
-      await addTask(values);
+      return editTask(taskBeingEdited._id, values);
     }
+    return addTask(values);
   };
 
   const handleDrop = (taskId, newStatus) => {
