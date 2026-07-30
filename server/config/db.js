@@ -1,18 +1,43 @@
 import mongoose from 'mongoose';
 
-/**
- * Establishes connection to MongoDB using the URI provided in environment
- * variables. Exits the process on failure since the API cannot function
- * without a database connection.
- */
+let cached = global._mongooseConnection;
+if (!cached) {
+  cached = global._mongooseConnection = { conn: null, promise: null };
+}
+
 const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGO_URI);
-    console.log(`MongoDB connected: ${conn.connection.host}`);
-  } catch (error) {
-    console.error(`MongoDB connection failed: ${error.message}`);
-    process.exit(1);
+  // readyState: 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
+  const isActuallyConnected = mongoose.connection.readyState === 1;
+
+  if (cached.conn && isActuallyConnected) {
+    return cached.conn;
   }
+
+
+  if (cached.conn && !isActuallyConnected) {
+    cached.conn = null;
+    cached.promise = null;
+  }
+
+  if (!cached.promise) {
+    cached.promise = mongoose
+      .connect(process.env.MONGO_URI, {
+        serverSelectionTimeoutMS: 10000, // fail fast instead of hanging silently
+      })
+      .then((mongooseInstance) => {
+        console.log(`MongoDB connected: ${mongooseInstance.connection.host}`);
+        return mongooseInstance;
+      });
+  }
+
+  try {
+    cached.conn = await cached.promise;
+  } catch (error) {
+    cached.promise = null; // allow the next request to retry instead of staying broken
+    throw error;
+  }
+
+  return cached.conn;
 };
 
 export default connectDB;
